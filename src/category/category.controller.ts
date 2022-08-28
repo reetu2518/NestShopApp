@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, HttpStatus, Inject, Param, Post, Put } from '@nestjs/common';
+import { Body, ConflictException, Controller, Delete, Get, HttpStatus, Inject, InternalServerErrorException, NotFoundException, Param, ParseIntPipe, Post, Put, ValidationPipe } from '@nestjs/common';
 import { ApiCreatedResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { NotNullException } from 'src/common/exception/not-null-exception';
 import { messages } from 'src/constants/constant';
 import { CategoryService } from './category.service';
 import { CreateCatoegoryDto, UpdateCatoegoryDto } from './dto/category.dto';
@@ -39,9 +40,11 @@ export class CategoryController {
     @Get()
     async allCategories() {
         try {
-            return await this.categoryService.allCategories();
+            const result = await this.categoryService.allCategories();            
+            if (result.length === 0) throw new NotFoundException({status:400, messages:messages.dataNotFound})
+            return result;
         } catch (error) {
-            throw new Error("");            
+            throw new InternalServerErrorException({status:HttpStatus.INTERNAL_SERVER_ERROR, messages:messages.internalError});            
         }
     }
 
@@ -54,8 +57,19 @@ export class CategoryController {
     @ApiCreatedResponse({status:HttpStatus.CREATED, description:messages.createSucess})
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Post('create')
-    async create(@Body() createCatoegoryDto:CreateCatoegoryDto) {
-        return await this.categoryService.create(createCatoegoryDto);
+    async create(@Body(new ValidationPipe()) createCatoegoryDto:CreateCatoegoryDto) {
+        try {
+            const result = await this.categoryService.create(createCatoegoryDto);
+            return result;
+        } catch (error) {
+            if (error.code == '23505') {
+                throw new ConflictException({status:HttpStatus.CONFLICT, messages:messages.alreadyExist});
+            } else if(error.code == '23502') {
+                throw new NotNullException({message:messages.categoryNotEmpty});
+            } else {
+                throw new InternalServerErrorException({status:HttpStatus.INTERNAL_SERVER_ERROR, messages:messages.internalError});
+            }
+        }
     }
 
 
@@ -67,8 +81,10 @@ export class CategoryController {
     @ApiOkResponse({status:HttpStatus.OK, description:"Categories fetch Successfully By Id!"})
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Get(':id')
-    async getCategory(@Param('id') id:number) {
-        return await this.categoryService.getCategory(id);
+    async getCategory(@Param('id', ParseIntPipe) id:number) {
+        const result = await this.categoryService.getCategory(id);
+        if (result == null) throw new NotNullException({status:HttpStatus.NOT_FOUND, message:messages.dataNotFound});
+        return result;
     }
 
     /**
@@ -81,10 +97,11 @@ export class CategoryController {
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Put('update/:id')
     async update(
-        @Param('id') id:number,
+        @Param('id', ParseIntPipe) id:number,
         @Body() updateCatoegoryDto:UpdateCatoegoryDto
     ) {
-        return await this.categoryService.update(id, updateCatoegoryDto);
+        const result = this.categoryService.update(id, updateCatoegoryDto);
+        return result;
     }
 
 
@@ -97,7 +114,7 @@ export class CategoryController {
     @ApiNotFoundResponse({status:HttpStatus.NOT_FOUND, description:"Category Not Found"})
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Delete('delete/:id')
-    async delete(@Param('id') id:number) {
+    async delete(@Param('id', ParseIntPipe) id:number) {
         return await this.categoryService.delete(id);
     }
 }

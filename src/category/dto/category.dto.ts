@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsString, Length } from "class-validator";
 import { messages } from "src/constants/constant";
 
 /**
@@ -13,6 +13,7 @@ export class CreateCatoegoryDto {
     @IsNotEmpty({
         message : messages.categoryNotEmpty
     })
+    @Length(3,20, {message:"Category length should in between 3-20"})
     @IsString()
     categoryName:string;
 
@@ -31,6 +32,7 @@ export class UpdateCatoegoryDto {
      * category name
      */
     @ApiProperty({description:"Category name description", required:true})
+    @Length(3,20, {message:"Category length should in between 3-20"})
     @IsNotEmpty({
         message : messages.categoryNotEmpty
     })

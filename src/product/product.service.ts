@@ -22,7 +22,7 @@ export class ProductService {
 
     /**
      * product create
-     * @param CreateProductDto product name, quantity, price
+     * @param CreateProductDto product name- quantity-price
      * @returns Newly Created row
      */
     async create(CreateProductDto:CreateProductDto): Promise<CreateProductDto> {
@@ -44,14 +44,11 @@ export class ProductService {
      * @returns product details
      */
     async getProduct(productName:string) : Promise<CreateProductDto> {
-        console.log(productName, "in service");
-        
         const product = await this.productRepo.findOne({
             where: {
                 productName : productName
             }
         });
-        console.log(product, "product");
         return product;
     }
 

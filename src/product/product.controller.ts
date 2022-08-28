@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, HttpStatus, Param, Post, Put } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpStatus, InternalServerErrorException, NotFoundException, Param, ParseIntPipe, Post, Put, ValidationPipe } from '@nestjs/common';
 import { ApiCreatedResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { NotNullException } from 'src/common/exception/not-null-exception';
 import { messages } from 'src/constants/constant';
 import { UpdateProductDto, CreateProductDto } from './dto/Product.dto';
 import { ProductService } from './product.service';
@@ -20,7 +21,13 @@ export class ProductController {
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Get()
     async allProducts() {
-        return await this.productService.allProducts();
+        try {
+            const result = await this.productService.allProducts();
+            if (result.length === 0) throw new NotFoundException({status:HttpStatus.NOT_FOUND, messages:messages.dataNotFound});
+            return result;
+        } catch (error) {
+            throw new InternalServerErrorException({status:HttpStatus.INTERNAL_SERVER_ERROR, messages:messages.internalError});
+        }
     }
     
     /**
@@ -31,8 +38,15 @@ export class ProductController {
     @ApiOkResponse({status:HttpStatus.OK, description:"Products details fetch Successfully By Id!"})
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Get(':id')
-    async getProductById(@Param('id') id:number) {
-        return await this.productService.getProductById(id);
+    async getProductById(@Param('id', ParseIntPipe) id:number) {
+        try {
+            const result = await this.productService.getProductById(id);
+            if (result == null) throw new NotNullException({status:HttpStatus.NOT_FOUND, message:messages.dataNotFound});
+            return result;
+        } catch (error) {
+            if (error.status == 705) throw new NotNullException({status:HttpStatus.NOT_FOUND, message:messages.dataNotFound});
+            throw new InternalServerErrorException({status:HttpStatus.INTERNAL_SERVER_ERROR, messages:messages.internalError});
+        }
     }
 
 
@@ -45,21 +59,36 @@ export class ProductController {
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Get('/details/:productName')
     async getProduct(@Param('productName') productName:string) {
-        console.log("Hii");
-        console.log(productName);
-        return await this.productService.getProduct(productName);
+        if(typeof(productName) != "string") throw new BadRequestException();
+        const result = this.productService.getProduct(productName);
+        result.then((data)=>{
+            if(data == null) return new NotNullException({status:HttpStatus.NOT_FOUND, message:messages.dataNotFound});
+        });
+        // if (result == null)  throw new NotNullException({status:HttpStatus.NOT_FOUND, message:messages.dataNotFound});
+        return result;
     }
 
     /**
      * Product Create
-     * @param createProductDto product name, quantity, price
+     * @param createProductDto product name-quantity-price
      * @returns Newly created product
      */
     @ApiCreatedResponse({status:HttpStatus.CREATED, description:messages.createSucess})
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Post('create')
-    async create(@Body() createProductDto:CreateProductDto) {
-        return await this.productService.create(createProductDto);
+    async create(@Body(new ValidationPipe()) createProductDto:CreateProductDto) {
+        try {
+            const result = await this.productService.create(createProductDto);
+            return result;
+        } catch (error) {
+            if (error.code == '23505') {
+                throw new ConflictException({status:HttpStatus.CONFLICT, messages:messages.alreadyExist});
+            } else if(error.code == '23502') {
+                throw new NotNullException({message:messages.categoryNotEmpty});
+            } else {
+                throw new InternalServerErrorException({status:HttpStatus.INTERNAL_SERVER_ERROR, messages:messages.internalError});
+            }
+        }
     }
     
     /**
@@ -72,7 +101,7 @@ export class ProductController {
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Put('update/:id')
     async update(
-        @Param('id') id:number,
+        @Param('id', ParseIntPipe) id:number,
         @Body() updateProductDto:UpdateProductDto
     ) {
         return await this.productService.update(id, updateProductDto);
@@ -87,7 +116,7 @@ export class ProductController {
     @ApiNotFoundResponse({status:HttpStatus.NOT_FOUND, description:"Category Not Found"})
     @ApiInternalServerErrorResponse({status:HttpStatus.INTERNAL_SERVER_ERROR, description:messages.internalError})
     @Delete('delete/:id')
-    async delete(@Param('id') id:number) {
+    async delete(@Param('id', ParseIntPipe) id:number) {
         return await this.productService.delete(id);
     }
 }

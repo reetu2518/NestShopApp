@@ -49,9 +49,14 @@ export class CategoryService {
      * @returns Category
      */
     async update(id:number, updateCatoegoryDto:UpdateCatoegoryDto) {
+        const row = this.categoryRepo.findOneBy({id});
+        row.then(async affectedRow=>{
+            if(affectedRow == null) return false;
+        })
         return await this.categoryRepo.update(id, {
             categoryName: updateCatoegoryDto.categoryName
         });
+        // .catch()
     }
 
     /**

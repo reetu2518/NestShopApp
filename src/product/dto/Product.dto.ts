@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty } from "class-validator";
+import { IsNotEmpty, IsNumber, IsString, Length } from "class-validator";
 import { messages } from "src/constants/constant";
 
 /**
@@ -14,24 +14,35 @@ export class CreateProductDto {
     @IsNotEmpty({
         message : messages.productNotEmpty
     })
+    @IsString()
+    @Length(3,20, {message:"Product length should in between 3-20"})
     productName:string;
 
     /**
      * Product Price
      */
     @ApiProperty({description:"Product Price", required:true})
+    @IsNotEmpty({
+        message : messages.priceNotEmpty
+    })
+    @IsNumber()
     price:number;
     
     /**
      * Product quantity
      */
     @ApiProperty({description:"Product quantity", required:true})
+    @IsNotEmpty({
+        message : messages.quanityNotEmpty
+    })
+    @IsNumber()
     quanity:number;
     
     /**
      * Product description"
      */
     @ApiProperty({description:"Product description", required:true})
+    @IsString()
     description:string;
 }
 
@@ -43,5 +54,9 @@ export class UpdateProductDto {
      * Product quantity
      */
     @ApiProperty({description:"Product quantity", required:true})
+    @IsNotEmpty({
+        message : messages.priceNotEmpty
+    })
+    @IsNumber()
     quanity:number;
 }
